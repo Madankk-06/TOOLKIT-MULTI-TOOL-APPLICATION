@@ -1,0 +1,11 @@
+{
+  "nav": { "home": "Home",
+            "categories": "Categories",
+            "back": "Back"
+          },
+  "theme": { "dark": "Dark", "light": "Light", "auto": "Auto" },
+  "common": { "copy": "Copy", "back": "Back", "on": "On", "off": "Off" },
+  "tools": {
+    "flashlight": { "title": "Flashlight", "desc": "Toggle device torch" }
+  }
+}

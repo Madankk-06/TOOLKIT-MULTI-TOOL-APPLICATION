@@ -1,0 +1,148 @@
+/* ==========================================================================
+   1. CORE THEME VARIABLE REGISTRIES (LIGHT/DARK DESIGN TOKENS)
+   ========================================================================== */
+
+:root {
+  --bg-app: #0c0c0c;
+  --bg-surface: #1e1e2e;
+  --bg-surface-hover: #25263b;
+  
+  --text-main: #cdd6f4;
+  --text-muted: #a6adc8;
+  
+  --border-color: #313244;
+  --accent-color: #ff7e5f;
+  --accent-glow: rgba(255, 126, 95, 0.2);
+  
+  --input-fill: #11111b;
+
+  /* Legacy color system compatibility layer */
+  --color-bg-app: var(--bg-app);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-surface-hover: var(--bg-surface-hover);
+  --color-bg-elevated: var(--input-fill);
+  --color-text-main: var(--text-main);
+  --color-text-primary: var(--text-main);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border-color);
+  --color-accent: var(--accent-color);
+  --color-accent-glow: var(--accent-glow);
+}
+
+/* Light Mode Theme Definition */
+:root[data-theme='light'] {
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f1f5f9;
+  
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  
+  --border-color: #cbd5e1;
+  --accent-color: #1a73e8;
+  --accent-glow: rgba(26, 115, 232, 0.15);
+  
+  --input-fill: #ffffff;
+}
+
+/* Dark Mode Theme Definition (Preserves your original UI look) */
+:root[data-theme='dark'] {
+  --bg-app: #0c0c0c;
+  --bg-surface: #1e1e2e;
+  --bg-surface-hover: #25263b;
+  
+  --text-main: #cdd6f4;
+  --text-muted: #a6adc8;
+  
+  --border-color: #313244;
+  --accent-color: #ff7e5f;
+  --accent-glow: rgba(255, 126, 95, 0.2);
+  
+  --input-fill: #11111b;
+}
+
+/* ==========================================================================
+   2. GLOBAL RESET & CORE TYPOGRAPHY
+   ========================================================================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: "Kanit", "Inter", system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  /* Smooth transitions when clicking your sun/moon switch */
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   3. UNIVERSAL PREMIUM UTILITY STYLES
+   ========================================================================== */
+
+/* Apply this class to your main container divs */
+.app-container {
+  padding: 40px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Clean, responsive card layouts for your tools */
+.tool-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.3s ease;
+}
+
+.tool-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-color);
+  background-color: var(--bg-surface-hover);
+}
+
+/* Universal Input Field System */
+.universal-input {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background-color: var(--input-fill);
+  color: var(--text-main);
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.universal-input:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 4px var(--accent-glow);
+}
+
+/* Premium Button Styling Framework */
+.action-button {
+  background-color: var(--accent-color);
+  color: #ffffff;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+
+.action-button:hover {
+  opacity: 0.9;
+}
+
+.action-button:active {
+  transform: scale(0.98);
+}

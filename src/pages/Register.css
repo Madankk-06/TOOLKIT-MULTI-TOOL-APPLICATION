@@ -1,0 +1,181 @@
+/* ============================================================
+   VAULT Lock Module Styles (Scoped to .lock)
+   ============================================================ */
+
+.lock {
+  --panel:       #1c222c;
+  --panel-line:  rgba(233, 240, 248, .13);
+  --chip-bg:     #12171e;        /* darker than the panel, so it reads as inset */
+  --on-panel:    #dfe6ee;
+  --on-panel-dim:#98a3b1;
+
+  /* graphics: bars, glows, the LED. 3:1 on --panel. */
+  --t0: #94a3b8;
+  --t1: #ff5d52;
+  --t2: #ff9d3c;
+  --t3: #ffd23f;
+  --t4: #2fe08a;
+
+  /* the same four tiers as TEXT. 4.5:1 on --panel. Never interchangeable
+     with the above: --t3 as 13px bold type would be unreadable. */
+  --t0-ink: #9aa3b2;
+  --t1-ink: #ff8078;
+  --t2-ink: #ffb15e;
+  --t3-ink: #ffd961;
+  --t4-ink: #4fe6a0;
+
+  /* Current tier colors (will be updated via inline styles by JS) */
+  --lock:     var(--t0);
+  --lock-ink: var(--t0-ink);
+
+  --ease-out:  cubic-bezier(.22, 1, .36, 1);
+  --ease-back: cubic-bezier(.34, 1.56, .64, 1);
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--panel-line);
+  background: var(--panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07);
+  transition: border-color .5s var(--ease-out), box-shadow .5s var(--ease-out);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.lock.is-lit {
+  border-color: color-mix(in srgb, var(--lock) 55%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07),
+              0 0 26px -10px color-mix(in srgb, var(--lock) 80%, transparent);
+}
+
+.chip {
+  flex: none;
+  width: 96px;
+  height: 96px;
+  border-radius: 10px;
+  overflow: hidden;                 /* the padlock falls out of frame, and the
+                                       door shake must not expose an edge */
+  background: var(--chip-bg);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), inset 0 12px 24px -12px rgba(0, 0, 0, .8);
+}
+
+.door {
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+.door__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.seam__glow {
+  fill: var(--lock);
+  opacity: .6;
+  filter: blur(5px);                /* static, on a 20×400 sliver — never animated */
+  transition: fill .5s var(--ease-out);
+}
+
+.bolt__rivet circle {
+  fill: #6d7784;
+}
+
+.clip__wire {
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .45));
+}
+
+.pad, .bolt {
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, .45));
+}
+
+.vault__lamp {
+  color: var(--lock);
+  transition: color .5s var(--ease-out);
+}
+
+.lamp__halo {
+  fill: var(--lock);
+  opacity: .4;
+  filter: blur(5px);
+  transition: fill .5s var(--ease-out);
+}
+
+.shock {
+  stroke: var(--lock);
+  opacity: 0;
+  transition: stroke .5s var(--ease-out);
+}
+
+.gauge {
+  flex: 1;
+  min-width: 0;
+}
+
+.meter {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+
+.seg {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(233, 240, 248, .14);
+  overflow: hidden;
+}
+
+.seg b {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform .45s var(--ease-back);
+}
+
+.seg[data-t="1"] b { background: var(--t1); }
+.seg[data-t="2"] b { background: var(--t2); }
+.seg[data-t="3"] b { background: var(--t3); }
+.seg[data-t="4"] b { background: var(--t4); box-shadow: 0 0 10px var(--t4); }
+.seg.on b { transform: scaleX(1); }
+
+/* Name and crack-time each get their own line, always. Inline, the longest
+   crack-time string wraps and the card jumps height mid-keystroke. */
+.verdict {
+  margin-top: 11px;
+  font-size: .82rem;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.verdict__name {
+  display: block;
+  font-weight: 700;
+  color: var(--lock-ink);           /* the TEXT-safe tier colour, never --lock */
+  transition: color .5s var(--ease-out);
+}
+
+.verdict__crack {
+  display: block;
+  color: var(--on-panel);
+}
+
+.bits {
+  margin-top: 4px;
+  font-size: .71rem;
+  color: var(--on-panel-dim);
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+
+/* ---------------- Small screens ---------------- */
+@media (max-width: 420px) {
+  .lock { flex-direction: column; align-items: stretch; gap: 12px; }
+  .chip { width: 104px; height: 104px; align-self: center; }
+}

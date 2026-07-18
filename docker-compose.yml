@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  toolkit-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: toolkit_container
+    ports:
+      - "8080:80"
+    restart: always
+    environment:
+      - NODE_ENV=production

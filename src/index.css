@@ -1,0 +1,96 @@
+/* ─── Global Reset & Box Model ─────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* ─── Root Defaults ─────────────────────────────────────────────────── */
+:root {
+  font-family: 'Inter', 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+/* ─── Body ──────────────────────────────────────────────────────────── */
+html, body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  /* Uses theme variables from ThemeContext — NO hardcoded dark values */
+  background-color: var(--bg-app, #0c0c0c);
+  color: var(--text-main, #cdd6f4);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Links ─────────────────────────────────────────────────────────── */
+a {
+  font-weight: 500;
+  color: var(--accent-color, #e91e8c);
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+a:hover {
+  opacity: 0.82;
+}
+
+/* ─── Buttons ───────────────────────────────────────────────────────── */
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: var(--bg-surface, #1e1e2e);
+  color: var(--text-main, #cdd6f4);
+  cursor: pointer;
+  transition: border-color 0.25s, background-color 0.25s, color 0.25s;
+}
+button:hover {
+  border-color: var(--accent-color, #e91e8c);
+}
+button:focus,
+button:focus-visible {
+  outline: 2px solid var(--accent-color, #e91e8c);
+  outline-offset: 2px;
+}
+
+/* ─── Inputs / Textareas / Selects ──────────────────────────────────── */
+input, textarea, select {
+  font-family: inherit;
+  background-color: var(--input-fill, #11111b);
+  color: var(--text-main, #cdd6f4);
+  border: 1px solid var(--border-color, #313244);
+  border-radius: 8px;
+  transition: border-color 0.25s, background-color 0.25s, color 0.25s;
+}
+input:focus, textarea:focus, select:focus {
+  outline: 2px solid var(--accent-color, #e91e8c);
+  outline-offset: 0px;
+}
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted, #666);
+}
+
+/* ─── Float animation for Home particles ───────────────────────────── */
+@keyframes float {
+  from { transform: translateY(0px) scale(1); }
+  to   { transform: translateY(-18px) scale(1.06); }
+}

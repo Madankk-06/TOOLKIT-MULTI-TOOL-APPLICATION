@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.env
+.env.local
+playwright-report
+test-results
+dev.log
+temp_extracted
+temp_extracted_files
