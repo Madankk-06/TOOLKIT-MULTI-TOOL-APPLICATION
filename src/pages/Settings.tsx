@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import BackButton from '../components/BackButton';
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { deleteUser, updateProfile } from 'firebase/auth';
+import { deleteUser, updateProfile, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { db, auth } from '../firebase/config';
 import { TRIGGER_GUIDE_EVENT } from '../components/OnboardingGuide';
 
@@ -29,6 +29,8 @@ export default function Settings() {
   const [success, setSuccess] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showFullscreenVideo, setShowFullscreenVideo] = useState(false);
+  const [passwordForDelete, setPasswordForDelete] = useState('');
+  const [requiresPassword, setRequiresPassword] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -103,23 +105,54 @@ export default function Settings() {
     
     try {
       const uid = currentUser.uid;
-      // 1. Delete Firestore user document
-      await deleteDoc(doc(db, 'users', uid));
 
-      // 2. Delete Auth user account
+      // 1. Re-authenticate if password is required/provided
+      if (passwordForDelete && currentUser.email) {
+        try {
+          const credential = EmailAuthProvider.credential(currentUser.email, passwordForDelete);
+          await reauthenticateWithCredential(currentUser, credential);
+        } catch (reauthErr: any) {
+          console.error("Re-authentication failed:", reauthErr);
+          if (reauthErr.code === 'auth/wrong-password' || reauthErr.code === 'auth/invalid-credential') {
+            setError('Incorrect password. Please enter your valid account password.');
+            setDeleteLoading(false);
+            return;
+          }
+          throw reauthErr;
+        }
+      }
+
+      // 2. Delete Firestore user document
+      try {
+        await deleteDoc(doc(db, 'users', uid));
+      } catch (fsErr) {
+        console.warn("Firestore document cleanup warning:", fsErr);
+      }
+
+      // 3. Remove local storage flags
+      try {
+        localStorage.removeItem(`terms_accepted_${uid}`);
+        localStorage.removeItem('toolkit-guide-seen');
+      } catch {}
+
+      // 4. Delete Firebase Auth user account
       await deleteUser(currentUser);
 
-      navigate('/login');
+      // 5. Logout & redirect cleanly
+      try {
+        await logout();
+      } catch {}
+      navigate('/login', { replace: true });
     } catch (err: any) {
       console.error("Delete account error:", err);
       if (err.code === 'auth/requires-recent-login') {
-        setError('Sensitive operations require recent authentication. Please log out, log back in, and try again.');
+        setRequiresPassword(true);
+        setError('For security, please enter your account password below to confirm deletion.');
       } else {
         setError(err.message || 'Failed to delete account.');
       }
     } finally {
       setDeleteLoading(false);
-      setConfirmDelete(false);
     }
   };
 
@@ -705,7 +738,7 @@ export default function Settings() {
           </svg>
           Danger Zone
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '280px' }}>
             <div style={{ fontWeight: 'bold', color: '#ef4444', fontSize: '15px' }}>Delete Account Permanently</div>
             <div style={{ fontSize: '13px', color: tokens.textSecondary, marginTop: '2px', lineHeight: '1.5' }}>
@@ -714,24 +747,65 @@ export default function Settings() {
           </div>
           <div>
             {!confirmDelete ? (
-              <button onClick={() => setConfirmDelete(true)} style={styles.deleteBtn}>
+              <button 
+                onClick={() => { 
+                  setConfirmDelete(true); 
+                  setRequiresPassword(false); 
+                  setPasswordForDelete(''); 
+                  setError(''); 
+                }} 
+                style={styles.deleteBtn}
+              >
                 Delete Account
               </button>
             ) : (
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={handleDeleteAccount} style={{ ...styles.deleteBtn, padding: '10px 14px' }} disabled={deleteLoading}>
-                  {deleteLoading ? 'Deleting...' : 'Yes, Delete'}
+                <button 
+                  onClick={handleDeleteAccount} 
+                  style={{ ...styles.deleteBtn, padding: '10px 18px' }} 
+                  disabled={deleteLoading}
+                >
+                  {deleteLoading ? 'Deleting...' : 'Confirm Delete'}
                 </button>
-                <button onClick={() => setConfirmDelete(false)} style={{ ...styles.logoutBtn, padding: '10px 14px' }}>
+                <button 
+                  onClick={() => { 
+                    setConfirmDelete(false); 
+                    setRequiresPassword(false); 
+                    setPasswordForDelete(''); 
+                    setError(''); 
+                  }} 
+                  style={{ ...styles.logoutBtn, padding: '10px 16px' }}
+                >
                   Cancel
                 </button>
               </div>
             )}
           </div>
         </div>
+
         {confirmDelete && (
-          <div style={{ color: '#ef4444', fontSize: '12px', fontWeight: 'bold', marginTop: '12px' }}>
-            ⚠️ This will immediately delete your Firestore profile document and your login credentials from Firebase Authentication.
+          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(239, 68, 68, 0.2)' }}>
+            <div style={{ color: '#ef4444', fontSize: '13px', fontWeight: 'bold', marginBottom: '10px' }}>
+              ⚠️ Security Authentication: Enter your account password to confirm permanent deletion:
+            </div>
+            <div style={{ display: 'flex', gap: '12px', maxWidth: '420px', flexWrap: 'wrap' }}>
+              <input
+                type="password"
+                placeholder="Enter your account password"
+                value={passwordForDelete}
+                onChange={(e) => setPasswordForDelete(e.target.value)}
+                style={{
+                  ...styles.input,
+                  borderColor: '#ef4444',
+                  backgroundColor: tokens.inputBg,
+                  fontSize: '14px',
+                  padding: '10px 14px',
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleDeleteAccount();
+                }}
+              />
+            </div>
           </div>
         )}
       </div>

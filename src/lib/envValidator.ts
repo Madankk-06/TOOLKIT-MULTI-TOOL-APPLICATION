@@ -99,6 +99,24 @@ const REQUIRED_VARS: EnvVar[] = [
     validate: v => v.length >= 10
   },
   {
+    key: "VITE_EMAILJS_SERVICE_ID",
+    importance: "important",
+    description: "EmailJS Service ID (OTP registration email)",
+    validate: v => v.length > 3
+  },
+  {
+    key: "VITE_EMAILJS_TEMPLATE_ID",
+    importance: "important",
+    description: "EmailJS Template ID (OTP registration email)",
+    validate: v => v.length > 3
+  },
+  {
+    key: "VITE_EMAILJS_PUBLIC_KEY",
+    importance: "important",
+    description: "EmailJS Public Key (OTP registration email)",
+    validate: v => v.length > 3
+  },
+  {
     key: "VITE_POSTHOG_KEY",
     importance: "optional",
     description: "PostHog analytics key",

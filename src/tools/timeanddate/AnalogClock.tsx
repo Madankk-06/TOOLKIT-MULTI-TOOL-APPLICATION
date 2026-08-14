@@ -408,8 +408,8 @@ export default function AnalogClock() {
     
     const mergedGeo = new THREE.BufferGeometry();
     ['position', 'color', 'size', 'a_progress'].forEach(attrName => {
-      const arr1 = (secondHand.geometry.getAttribute(attrName) as THREE.BufferAttribute).array as Float32Array;
-      const arr2 = (counterGeo.getAttribute(attrName) as THREE.BufferAttribute).array as Float32Array;
+      const arr1 = (secondHand.geometry.getAttribute(attrName) as any).array as Float32Array;
+      const arr2 = (counterGeo.getAttribute(attrName) as any).array as Float32Array;
       const merged = new Float32Array(arr1.length + arr2.length);
       merged.set(arr1);
       merged.set(arr2, arr1.length);
