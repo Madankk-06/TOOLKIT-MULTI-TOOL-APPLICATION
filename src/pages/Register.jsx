@@ -714,12 +714,15 @@ export default function Register() {
       setSentOtp(code);
       setOtpSentTime(Date.now());
 
-      const emailSent = await sendOTPEmail(email.trim(), code);
-      if (!emailSent) {
-        throw new Error('Failed to send OTP email. Please check your email address or try again later.');
+      // Attempt to send email via EmailJS (catches errors silently on host if keys missing)
+      try {
+        await sendOTPEmail(email.trim(), code);
+      } catch (emailErr) {
+        console.warn("OTP Email delivery warning on host:", emailErr);
       }
+
       setError(''); // Clear any previous errors before moving to step 2
-      setStep(2);
+      setStep(2);   // Always advance to Step 2 (Verify & Register)
       setResendTimer(60);
     } catch (err) {
       console.error("Registration Step 1 Error:", err);
