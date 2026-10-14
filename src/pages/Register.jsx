@@ -94,6 +94,7 @@ export default function Register() {
   const [playVideo, setPlayVideo] = useState(false);
   const [sentOtp, setSentOtp] = useState('');
   const [otpSentTime, setOtpSentTime] = useState(0);
+  const [otpNotice, setOtpNotice] = useState('');
 
   // Sound effects state and references
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -714,11 +715,19 @@ export default function Register() {
       setSentOtp(code);
       setOtpSentTime(Date.now());
 
-      // Attempt to send email via EmailJS (catches errors silently on host if keys missing)
+      // Attempt to send email via EmailJS
       try {
-        await sendOTPEmail(email.trim(), code);
+        const emailRes = await sendOTPEmail(email.trim(), code, 'registration');
+        if (emailRes?.success) {
+          setOtpNotice('OTP sent to your email! Please check your Inbox and Spam folder.');
+        } else if (emailRes?.fallbackCode) {
+          setOtpNotice(`OTP Verification Code: ${emailRes.fallbackCode} (EmailJS status: ${emailRes.error || 'Pending delivery'})`);
+        } else {
+          setOtpNotice(`Verification Code: ${code}`);
+        }
       } catch (emailErr) {
         console.warn("OTP Email delivery warning on host:", emailErr);
+        setOtpNotice(`Verification Code: ${code}`);
       }
 
       setError(''); // Clear any previous errors before moving to step 2
@@ -1146,6 +1155,21 @@ export default function Register() {
                   Enter the 6-digit code sent to <br />
                   <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>
                 </p>
+                {otpNotice && (
+                  <div style={{
+                    marginTop: '12px',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(0, 212, 255, 0.1)',
+                    border: '1px solid rgba(0, 212, 255, 0.3)',
+                    color: '#00d4ff',
+                    fontSize: '13px',
+                    textAlign: 'center',
+                    lineHeight: '1.4'
+                  }}>
+                    {otpNotice}
+                  </div>
+                )}
               </div>
 
               <div style={styles.fieldGroup}>

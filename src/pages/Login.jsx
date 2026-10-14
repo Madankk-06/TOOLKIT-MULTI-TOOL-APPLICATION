@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import CosmicCanvas from '../components/CosmicCanvas';
+import { generateOTP, saveOTP, verifyOTPFromDB, sendPasswordResetOTP } from '../services/otpService';
 
 // ── SVG SUB-ICONS ENGINE COMPONENTS ──────────────────────────────────────────
 const EyeIcon = ({ open }) => (
@@ -79,7 +80,22 @@ export default function Login() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
+  const [resetStep, setResetStep] = useState(1); // 1: Email Input, 2: OTP Verification
   const [resetEmail, setResetEmail] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
+  const [sentResetOtp, setSentResetOtp] = useState('');
+  const [resetOtpSentTime, setResetOtpSentTime] = useState(null);
+  const [resetOtpNotice, setResetOtpNotice] = useState('');
+  const [resetResendTimer, setResetResendTimer] = useState(0);
+
+  // Timer countdown for resending reset OTP
+  useEffect(() => {
+    let interval;
+    if (resetResendTimer > 0) {
+      interval = setInterval(() => setResetResendTimer((prev) => prev - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resetResendTimer]);
 
   useEffect(() => {
     const fadeTimer = setTimeout(() => {
@@ -131,27 +147,106 @@ export default function Login() {
   const { login, resetPassword } = useAuth();
   const navigate = useNavigate();
 
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
+  const closeResetMode = () => {
+    setResetMode(false);
+    setResetStep(1);
+    setResetEmail('');
+    setResetOtp('');
+    setSentResetOtp('');
+    setResetOtpNotice('');
+    setError('');
+    setSuccess('');
+  };
+
+  const handleSendResetOTP = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!resetEmail.trim()) {
       setError('Please enter your recovery email.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail.trim())) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    const code = generateOTP();
+    setSentResetOtp(code);
+    setResetOtpSentTime(Date.now());
+
+    try {
+      // 1. Save OTP in Firestore DB
+      await saveOTP(resetEmail.trim(), code);
+
+      // 2. Dispatch OTP via EmailJS
+      const emailRes = await sendPasswordResetOTP(resetEmail.trim(), code);
+      if (emailRes?.success) {
+        setResetOtpNotice('Password reset OTP sent to your email! Please check your Inbox and Spam.');
+      } else if (emailRes?.fallbackCode) {
+        setResetOtpNotice(`Reset OTP Code: ${emailRes.fallbackCode} (EmailJS status: ${emailRes.error || 'Pending delivery'})`);
+      } else {
+        setResetOtpNotice(`Reset OTP Code: ${code}`);
+      }
+
+      // 3. Companion Firebase link dispatch
+      try {
+        await resetPassword(resetEmail.trim());
+      } catch (fbErr) {
+        console.warn('Firebase reset link optional dispatch:', fbErr);
+      }
+
+      setResetStep(2);
+      setResetResendTimer(60);
+    } catch (err) {
+      console.error("Reset Error:", err);
+      setError('Failed to dispatch recovery code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyResetOTP = async (e) => {
+    e.preventDefault();
+    if (!resetOtp.trim()) {
+      setError('Please enter the 6-digit OTP code.');
       return;
     }
     setError('');
     setLoading(true);
 
     try {
-      await resetPassword(resetEmail.trim());
-      setSuccess('A secure reset link has been sent to your email. Please check your INBOX or SPAM.');
+      // Check 5-minute expiry
+      if (resetOtpSentTime && Date.now() - resetOtpSentTime > 5 * 60 * 1000) {
+        setError('OTP has expired. Please request a new code.');
+        setLoading(false);
+        return;
+      }
 
-      setTimeout(() => {
-        setResetMode(false);
-        setSuccess('');
-        setResetEmail('');
-      }, 6000);
+      let isValid = false;
+      if (sentResetOtp && resetOtp.trim() === sentResetOtp) {
+        isValid = true;
+      } else {
+        const dbCheck = await verifyOTPFromDB(resetEmail.trim(), resetOtp.trim());
+        if (dbCheck.valid) {
+          isValid = true;
+        } else {
+          setError(dbCheck.message || 'Incorrect OTP code. Please check and try again.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (isValid) {
+        setSuccess('OTP verified successfully! Check your email for the secure Firebase password update link to complete password change.');
+        setTimeout(() => {
+          closeResetMode();
+        }, 6000);
+      }
     } catch (err) {
-      console.error("Reset Error:", err);
-      setError(getFirebaseErrorMessage(err.code));
+      console.error("Verification error:", err);
+      setError('Failed to verify OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -376,10 +471,10 @@ export default function Login() {
                 {loading ? <LoadingSpinner /> : 'Sign In'}
               </motion.button>
             </motion.form>
-          ) : (
+          ) : resetStep === 1 ? (
             <motion.form
-              key="reset-form"
-              onSubmit={handleResetPassword}
+              key="reset-email-form"
+              onSubmit={handleSendResetOTP}
               style={styles.form}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -387,7 +482,7 @@ export default function Login() {
             >
               <div style={styles.fieldGroup}>
                 <p style={styles.resetInstruction}>
-                  Enter your email address and we'll send you a secure link to reset your password.
+                  Enter your email address and we will dispatch a secure 6-digit recovery OTP to verify your identity.
                 </p>
                 <label style={styles.label} htmlFor="reset-email">Recovery Email</label>
                 <div style={styles.inputWrapper}>
@@ -415,16 +510,90 @@ export default function Login() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {loading ? <LoadingSpinner /> : 'Send Reset Link'}
+                {loading ? <LoadingSpinner /> : 'Send Recovery OTP'}
               </motion.button>
 
               <button
                 type="button"
-                onClick={() => { setResetMode(false); setError(''); setSuccess(''); }}
+                onClick={closeResetMode}
                 style={styles.backBtn}
               >
                 ← Back to Login
               </button>
+            </motion.form>
+          ) : (
+            <motion.form
+              key="reset-otp-form"
+              onSubmit={handleVerifyResetOTP}
+              style={styles.form}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <div style={styles.fieldGroup}>
+                <p style={styles.resetInstruction}>
+                  Enter the 6-digit verification code sent to <strong style={{ color: '#ffffff' }}>{resetEmail}</strong>
+                </p>
+                
+                {resetOtpNotice && (
+                  <div style={styles.otpNotice}>
+                    {resetOtpNotice}
+                  </div>
+                )}
+
+                <div style={styles.inputWrapper}>
+                  <input
+                    id="reset-otp"
+                    type="text"
+                    maxLength="6"
+                    value={resetOtp}
+                    onChange={(e) => setResetOtp(e.target.value.replace(/\D/g, ''))}
+                    placeholder="0 0 0 0 0 0"
+                    style={styles.otpInput}
+                    disabled={loading}
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <motion.button
+                type="submit"
+                disabled={loading}
+                style={styles.submitBtn}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {loading ? <LoadingSpinner /> : 'Verify Code'}
+              </motion.button>
+
+              <div style={styles.resendArea}>
+                {resetResendTimer > 0 ? (
+                  <p style={styles.resendText}>Resend code in {resetResendTimer}s</p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSendResetOTP}
+                    disabled={loading}
+                    style={styles.resendBtn}
+                  >
+                    Didn't receive code? Resend
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setResetStep(1); setError(''); setSuccess(''); }}
+                  style={styles.subBackBtn}
+                >
+                  Change Email
+                </button>
+                <button
+                  type="button"
+                  onClick={closeResetMode}
+                  style={styles.backBtn}
+                >
+                  ← Back to Login
+                </button>
+              </div>
             </motion.form>
           )}
         </AnimatePresence>
@@ -694,5 +863,63 @@ position: 'relative',
     cursor: 'pointer',
     marginTop: '15px',
     alignSelf: 'center',
+  },
+  otpNotice: {
+    padding: '10px 14px',
+    background: 'rgba(0, 212, 255, 0.12)',
+    border: '1px solid rgba(0, 212, 255, 0.3)',
+    borderRadius: '8px',
+    color: '#00d4ff',
+    fontSize: '13px',
+    textAlign: 'center',
+    marginBottom: '14px',
+    lineHeight: '1.4',
+  },
+  otpInput: {
+    width: '100%',
+    padding: '14px',
+    background: 'rgba(0, 0, 0, 0.15)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '12px',
+    color: '#ffffff',
+    fontSize: '26px',
+    fontWeight: '900',
+    textAlign: 'center',
+    letterSpacing: '8px',
+    outline: 'none',
+    fontFamily: "'Orbitron', sans-serif",
+    transition: 'border-color 0.3s ease',
+    boxSizing: 'border-box',
+  },
+  resendArea: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '10px',
+    marginTop: '16px',
+  },
+  resendText: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: '13px',
+  },
+  resendBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#ff7e5f',
+    fontSize: '13px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    padding: 0,
+    fontFamily: "'Rajdhani', sans-serif",
+  },
+  subBackBtn: {
+    background: 'none',
+    border: 'none',
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: '13px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    padding: 0,
+    marginTop: '4px',
   },
 };

@@ -62,31 +62,49 @@ export const verifyOTPFromDB = async (email, code) => {
   }
 };
 
+// Fallback credentials in case hosting environment does not have .env loaded
+const DEFAULT_SERVICE_ID = 'service_h88qkul';
+const DEFAULT_TEMPLATE_ID = 'template_mda260k';
+const DEFAULT_PUBLIC_KEY = '7Dxk_UjGwnHSWR7NG';
+
 /**
  * Sends the OTP code via EmailJS.
+ * Supports both registration and password reset contexts.
  */
-export const sendOTPEmail = async (email, code) => {
+export const sendOTPEmail = async (email, code, type = 'registration') => {
+  const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID || DEFAULT_SERVICE_ID;
+  const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || DEFAULT_TEMPLATE_ID;
+  const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || DEFAULT_PUBLIC_KEY;
+
+  const isReset = type === 'reset' || type === 'password_reset';
+  const actionLabel = isReset ? 'password reset' : 'account registration';
+
+  // Comprehensive parameter mapping so any EmailJS template variable names work
+  const templateParams = {
+    to_email: email,
+    email: email,
+    user_email: email,
+    recipient: email,
+    reply_to: email,
+    to_name: email.split('@')[0],
+    name: email.split('@')[0],
+    from_name: 'ToolKit Security',
+    otp_code: code,
+    otp: code,
+    code: code,
+    passcode: code,
+    verification_code: code,
+    type: actionLabel,
+    subject: `Your ToolKit ${isReset ? 'Password Reset' : 'Verification'} Code: ${code}`,
+    message: `Your ToolKit ${actionLabel} OTP is: ${code}. This code is valid for 5 minutes. Do not share it with anyone.`,
+    time: new Date().toLocaleTimeString(),
+  };
+
   try {
-    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-    const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
-
-    if (!serviceId || !templateId || !publicKey) {
-      console.warn('[ToolKit OTP] EmailJS environment variables missing on host environment.');
-      console.log(`[ToolKit Demo OTP] Verification code for ${email} is: ${code}`);
-      if (typeof window !== 'undefined') {
-        alert(`[Host OTP Notification] Your registration verification code is: ${code}\n\n(Tip: Add VITE_EMAILJS_* environment variables on Vercel to send emails directly to inbox.)`);
-      }
-      return true;
+    // Explicit initialization ensures public key is registered in @emailjs/browser
+    if (publicKey) {
+      emailjs.init({ publicKey });
     }
-
-    const templateParams = {
-      to_email: email,
-      otp_code: code,
-      time: new Date().toLocaleTimeString(),
-      email: email,
-      otp: code,
-    };
 
     const response = await emailjs.send(
       serviceId,
@@ -95,14 +113,27 @@ export const sendOTPEmail = async (email, code) => {
       publicKey
     );
     
-    console.log('EmailJS Success:', response.status, response.text);
-    return true;
+    console.log('[ToolKit OTP] EmailJS Success:', response.status, response.text);
+    return { success: true, status: response.status, text: response.text, code };
   } catch (error) {
-    console.error('EmailJS Error:', error);
-    console.log(`[ToolKit Fallback OTP] Verification code for ${email} is: ${code}`);
-    if (typeof window !== 'undefined') {
-      alert(`[OTP Delivery Notice] EmailJS failed to send email on this domain.\n\nYour verification code is: ${code}`);
-    }
-    return true;
+    console.error('[ToolKit OTP] EmailJS Delivery Error:', error);
+    const errorMsg = error?.text || error?.message || 'Email delivery failed';
+    
+    // Fallback notification for testing or domain restriction environments
+    console.warn(`[ToolKit Fallback] Verification code for ${email} is: ${code}`);
+    
+    return { 
+      success: false, 
+      error: errorMsg, 
+      fallbackCode: code,
+      message: `EmailJS encountered an issue (${errorMsg}). Your verification code is: ${code}`
+    };
   }
+};
+
+/**
+ * Convenience helper to send password reset OTP.
+ */
+export const sendPasswordResetOTP = async (email, code) => {
+  return sendOTPEmail(email, code, 'reset');
 };
