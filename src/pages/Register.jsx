@@ -5,8 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import CosmicCanvas from '../components/CosmicCanvas';
 import { auth, db } from '../firebase/config';
 import { fetchSignInMethodsForEmail } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { generateOTP, sendOTPEmail } from '../services/otpService';
+import { generateOTP, sendOTPEmail, saveOTP, verifyOTPFromDB } from '../services/otpService';
 import gsap from 'gsap';
 import './Register.css';
 
@@ -715,6 +714,13 @@ export default function Register() {
       setSentOtp(code);
       setOtpSentTime(Date.now());
 
+      // Save OTP to Firestore (for verification redundancy)
+      try {
+        await saveOTP(email.trim(), code);
+      } catch (dbErr) {
+        console.warn("Firestore temp_otps write restricted:", dbErr);
+      }
+
       // Attempt to send email via EmailJS
       try {
         const emailRes = await sendOTPEmail(email.trim(), code, 'registration');
@@ -762,13 +768,23 @@ export default function Register() {
         return;
       }
 
-      // Check code match
-      if (otp === sentOtp) {
+      // Check code match (verify via local state or Firestore DB)
+      let isMatch = otp === sentOtp;
+      if (!isMatch) {
+        try {
+          const dbCheck = await verifyOTPFromDB(email.trim(), otp);
+          if (dbCheck?.valid) isMatch = true;
+        } catch (dbErr) {
+          console.warn("Firestore verify OTP fallback error:", dbErr);
+        }
+      }
+
+      if (isMatch) {
         // Final registration
         await register(email.trim(), password, displayName.trim());
         setPlayVideo(true);
       } else {
-        setError('Incorrect OTP code.');
+        setError('Incorrect OTP code. Please check and try again.');
         setLoading(false); // Reset loading so they can try again
       }
     } catch (err) {
