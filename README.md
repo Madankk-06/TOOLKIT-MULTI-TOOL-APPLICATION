@@ -9,28 +9,35 @@
   </p>
 
   <p align="center">
+    <a href="https://toolkit-2026.vercel.app/"><strong>🚀 Launch Live Application</strong></a> •
+    <a href="https://toolkit-2026.vercel.app/login"><strong>🔑 Login Page</strong></a> •
     <a href="#-features--tool-suite"><strong>Explore Tools</strong></a> •
     <a href="#-quick-start"><strong>Quick Start</strong></a> •
     <a href="#-docker--containerization"><strong>Docker Setup</strong></a> •
-    <a href="#-vercel-deployment"><strong>Vercel Deploy</strong></a> •
     <a href="#-screenshots--demo"><strong>Screenshots</strong></a>
   </p>
 
   <p align="center">
+    <a href="https://toolkit-2026.vercel.app/"><img src="https://img.shields.io/badge/Live_App-https://toolkit--2026.vercel.app-00D4FF?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Application" /></a>
     <img src="https://img.shields.io/badge/React-18.2-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
     <img src="https://img.shields.io/badge/TypeScript-5.3-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
     <img src="https://img.shields.io/badge/Vite-5.0-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
     <img src="https://img.shields.io/badge/Three.js-0.185-000000?style=for-the-badge&logo=three.js&logoColor=white" alt="Three.js" />
     <img src="https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="TailwindCSS" />
     <img src="https://img.shields.io/badge/Docker-Enabled-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
-    <img src="https://img.shields.io/badge/Vercel-Deployed-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" />
+    <a href="https://toolkit-2026.vercel.app/"><img src="https://img.shields.io/badge/Vercel-Deployed-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" /></a>
   </p>
 
 </div>
 
 ---
 
-## 🌟 Overview
+## 🌟 Overview & Live Access
+
+> [!IMPORTANT]
+> **🚀 Live Hosted Application**: [https://toolkit-2026.vercel.app](https://toolkit-2026.vercel.app)  
+> **🔑 Login Page**: [https://toolkit-2026.vercel.app/login](https://toolkit-2026.vercel.app/login)  
+> **📦 GitHub Repository**: [https://github.com/Madankk-06/TOOLKIT-MULTI-TOOL-APPLICATION](https://github.com/Madankk-06/TOOLKIT-MULTI-TOOL-APPLICATION)
 
 **ToolKit AI** is a next-generation web application featuring **70+ built-in utility tools**, hardware integrations, 3D Canvas visualizers, and games. Powered by an intelligent **RAG Intent-Routing Engine**, ToolKit AI understands natural language prompts, auto-navigates to the exact tool required, pre-fills parameter fields, and supports side-by-side **Multi-Tool Workspace Split Views**.
 
@@ -236,7 +243,7 @@ toolkit/
 ### 2. Installation
 ```bash
 # Clone repository
-git clone https://github.com/Madankk/TOOLKIT-MULTI-TOOL-APPLICATION.git
+git clone https://github.com/Madankk-06/TOOLKIT-MULTI-TOOL-APPLICATION.git
 cd toolkit
 
 # Install dependencies
@@ -257,6 +264,23 @@ Open **`http://localhost:5173`** in your browser.
 
 ---
 
+## 🌐 Live Deployment & Vercel Setup
+
+- 🔗 **Production Deployment**: **[https://toolkit-2026.vercel.app/login](https://toolkit-2026.vercel.app/login)**
+- 📦 **GitHub Repository**: **[https://github.com/Madankk-06/TOOLKIT-MULTI-TOOL-APPLICATION](https://github.com/Madankk-06/TOOLKIT-MULTI-TOOL-APPLICATION)**
+
+This project is deployed live on **Vercel** with automatic continuous integration from GitHub:
+
+1. Import your GitHub repository (`https://github.com/Madankk-06/TOOLKIT-MULTI-TOOL-APPLICATION`) into [Vercel](https://vercel.com/new).
+2. Set Build Settings:
+   - **Framework**: Vite
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+3. Add Environment Variables from `.env`.
+4. Click **Deploy**.
+
+---
+
 ## 🐳 Docker & Containerization
 
 Test the exact production Nginx container locally on **Docker Desktop (Mac/Linux/Windows)**:
@@ -272,20 +296,6 @@ To stop the container:
 ```bash
 docker compose down
 ```
-
----
-
-## 🌐 Vercel Deployment
-
-This project is optimized for 1-click deployment on **Vercel**:
-
-1. Import your GitHub repository into [Vercel](https://vercel.com/new).
-2. Set Build Settings:
-   - **Framework**: Vite
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-3. Add Environment Variables from `.env`.
-4. Click **Deploy**.
 
 ---
 
