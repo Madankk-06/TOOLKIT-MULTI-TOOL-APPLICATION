@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import CosmicCanvas from '../components/CosmicCanvas';
-import { generateOTP, saveOTP, verifyOTPFromDB, sendPasswordResetOTP } from '../services/otpService';
+import { generateOTP, saveOTP, verifyOTPFromDB, sendPasswordResetOTP, updateUserPasswordInDB } from '../services/otpService';
 
 // ── SVG SUB-ICONS ENGINE COMPONENTS ──────────────────────────────────────────
 const EyeIcon = ({ open }) => (
@@ -80,13 +80,17 @@ export default function Login() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
-  const [resetStep, setResetStep] = useState(1); // 1: Email Input, 2: OTP Verification
+  const [resetStep, setResetStep] = useState(1); // 1: Email Input, 2: OTP Verification, 3: Create New Password
   const [resetEmail, setResetEmail] = useState('');
   const [resetOtp, setResetOtp] = useState('');
   const [sentResetOtp, setSentResetOtp] = useState('');
   const [resetOtpSentTime, setResetOtpSentTime] = useState(null);
   const [resetOtpNotice, setResetOtpNotice] = useState('');
   const [resetResendTimer, setResetResendTimer] = useState(0);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
 
   // Timer countdown for resending reset OTP
   useEffect(() => {
@@ -154,6 +158,8 @@ export default function Login() {
     setResetOtp('');
     setSentResetOtp('');
     setResetOtpNotice('');
+    setNewPassword('');
+    setConfirmNewPassword('');
     setError('');
     setSuccess('');
   };
@@ -239,14 +245,62 @@ export default function Login() {
       }
 
       if (isValid) {
-        setSuccess('OTP verified successfully! Check your email for the secure Firebase password update link to complete password change.');
-        setTimeout(() => {
-          closeResetMode();
-        }, 6000);
+        setError('');
+        setSuccess('OTP verified successfully! Now create your new password.');
+        setResetStep(3);
+        setTimeout(() => setSuccess(''), 2500);
       }
     } catch (err) {
       console.error("Verification error:", err);
       setError('Failed to verify OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (!newPassword || !confirmNewPassword) {
+      setError('Please fill in both password fields.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await updateUserPasswordInDB(resetEmail.trim(), newPassword);
+      if (res.success) {
+        setSuccess('Password changed successfully in the database!');
+        setEmail(resetEmail.trim());
+        setPassword(newPassword);
+
+        try {
+          await login(resetEmail.trim(), newPassword);
+          navigate('/');
+          return;
+        } catch (loginErr) {
+          console.log('Auto login after password reset:', loginErr);
+        }
+
+        setTimeout(() => {
+          closeResetMode();
+          setSuccess('Password updated! Click Sign In to continue.');
+        }, 1500);
+      } else {
+        setError(res.error || 'Failed to update password in database. Please try again.');
+      }
+    } catch (err) {
+      console.error('Password Update Error:', err);
+      setError('Failed to update password in database. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -521,7 +575,7 @@ export default function Login() {
                 ← Back to Login
               </button>
             </motion.form>
-          ) : (
+          ) : resetStep === 2 ? (
             <motion.form
               key="reset-otp-form"
               onSubmit={handleVerifyResetOTP}
@@ -594,6 +648,93 @@ export default function Login() {
                   ← Back to Login
                 </button>
               </div>
+            </motion.form>
+          ) : (
+            <motion.form
+              key="reset-newpassword-form"
+              onSubmit={handleUpdatePassword}
+              style={styles.form}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <div style={styles.fieldGroup}>
+                <p style={styles.resetInstruction}>
+                  Identity verified! Set a new password for <strong style={{ color: '#ffffff' }}>{resetEmail}</strong>
+                </p>
+                <label style={styles.label} htmlFor="new-password">New Password</label>
+                <div style={styles.inputWrapper}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={styles.inputIcon}>
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <input
+                    id="new-password"
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    style={styles.input}
+                    disabled={loading}
+                    required
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((p) => !p)}
+                    style={styles.eyeBtn}
+                    tabIndex={-1}
+                  >
+                    <EyeIcon open={showNewPassword} />
+                  </button>
+                </div>
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label} htmlFor="confirm-new-password">Confirm New Password</label>
+                <div style={styles.inputWrapper}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={styles.inputIcon}>
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <input
+                    id="confirm-new-password"
+                    type={showConfirmNewPassword ? 'text' : 'password'}
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    style={styles.input}
+                    disabled={loading}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmNewPassword((p) => !p)}
+                    style={styles.eyeBtn}
+                    tabIndex={-1}
+                  >
+                    <EyeIcon open={showConfirmNewPassword} />
+                  </button>
+                </div>
+              </div>
+
+              <motion.button
+                type="submit"
+                disabled={loading}
+                style={styles.submitBtn}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {loading ? <LoadingSpinner /> : 'Save New Password'}
+              </motion.button>
+
+              <button
+                type="button"
+                onClick={closeResetMode}
+                style={styles.backBtn}
+              >
+                ← Back to Login
+              </button>
             </motion.form>
           )}
         </AnimatePresence>

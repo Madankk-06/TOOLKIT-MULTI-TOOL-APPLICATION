@@ -1,6 +1,6 @@
 import emailjs from '@emailjs/browser';
 import { db } from '../firebase/config';
-import { doc, setDoc, getDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, deleteDoc, updateDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 
 /**
  * Generates a random 6-digit OTP code.
@@ -59,6 +59,39 @@ export const verifyOTPFromDB = async (email, code) => {
   } catch (error) {
     console.error('Error verifying OTP:', error);
     return { valid: false, message: 'Verification failed. Please try again.' };
+  }
+};
+
+/**
+ * Updates the user's password directly in the Firestore database.
+ */
+export const updateUserPasswordInDB = async (email, newPassword) => {
+  try {
+    const cleanEmail = email.trim().toLowerCase();
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', cleanEmail));
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+      const userDoc = snapshot.docs[0];
+      await updateDoc(userDoc.ref, {
+        password: newPassword,
+        passwordUpdatedAt: serverTimestamp(),
+      });
+      return { success: true, message: 'Password updated successfully in database.' };
+    } else {
+      // If user document didn't exist by query, create/update via cleanEmail ID
+      await setDoc(doc(db, 'users', cleanEmail), {
+        email: cleanEmail,
+        password: newPassword,
+        passwordUpdatedAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      }, { merge: true });
+      return { success: true, message: 'Password updated successfully in database.' };
+    }
+  } catch (error) {
+    console.error('Error updating password in database:', error);
+    return { success: false, error: error.message || 'Database update failed.' };
   }
 };
 
