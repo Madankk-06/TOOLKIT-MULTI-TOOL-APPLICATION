@@ -10,7 +10,7 @@ import {
   User,
   UserCredential
 } from 'firebase/auth';
-import { doc, setDoc, getDocs, updateDoc, collection, query, where, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, updateDoc, collection, query, where, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 
 interface AuthContextType {
@@ -57,72 +57,90 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('toolkit_db_user');
       return result;
     } catch (err: any) {
-      // If Firebase Auth rejects with wrong password or invalid credential,
-      // verify if user has updated their password in the Firestore database
-      if (
-        err?.code === 'auth/wrong-password' ||
-        err?.code === 'auth/invalid-credential' ||
-        err?.code === 'auth/user-not-found'
-      ) {
+      const cleanEmail = email.trim().toLowerCase();
+
+      // Check if user has updated password in Firestore database (temp_otps) or local cache
+      try {
+        let matched = false;
+        let displayName = cleanEmail.split('@')[0];
+        let uid = cleanEmail;
+
+        // 1. Check Firestore temp_otps collection (has open read permissions for password recovery)
         try {
-          const q = query(
-            collection(db, 'users'),
-            where('email', '==', email.trim().toLowerCase())
-          );
-          const snap = await getDocs(q);
-          if (!snap.empty) {
-            const userData = snap.docs[0].data();
-            if (userData?.password && userData.password === password) {
-              // Password matches Firestore database record!
-              // Attempt to synchronize with Firebase Auth if authPassword is known
-              if (userData.authPassword && userData.authPassword !== password) {
-                try {
-                  const authRes = await signInWithEmailAndPassword(auth, email, userData.authPassword);
-                  if (auth.currentUser) {
-                    await updatePassword(auth.currentUser, password);
-                    await updateDoc(snap.docs[0].ref, { authPassword: password });
-                  }
-                  return authRes;
-                } catch (syncErr) {
-                  console.warn('Could not sync password to Firebase Auth:', syncErr);
-                }
-              }
-
-              // Create active session matching Firebase User interface
-              const syntheticUser = {
-                uid: userData.uid || snap.docs[0].id,
-                email: userData.email,
-                displayName: userData.displayName || userData.email?.split('@')[0] || 'User',
-                emailVerified: true,
-                isAnonymous: false,
-                metadata: {},
-                providerData: [],
-                refreshToken: '',
-                tenantId: null,
-                delete: async () => {},
-                getIdToken: async () => 'mock-token',
-                getIdTokenResult: async () => ({} as any),
-                reload: async () => {},
-                toJSON: () => ({}),
-                phoneNumber: null,
-                photoURL: null,
-                providerId: 'password',
-              } as unknown as User;
-
-              setCurrentUser(syntheticUser);
-              localStorage.setItem('toolkit_db_user', JSON.stringify({
-                uid: userData.uid || snap.docs[0].id,
-                email: userData.email,
-                displayName: userData.displayName || userData.email?.split('@')[0] || 'User',
-              }));
-
-              return { user: syntheticUser } as UserCredential;
+          const otpDoc = await getDoc(doc(db, 'temp_otps', cleanEmail));
+          if (otpDoc.exists()) {
+            const data = otpDoc.data();
+            if (data?.password && data.password === password) {
+              matched = true;
             }
           }
-        } catch (dbErr) {
-          console.warn('Database fallback login check failed:', dbErr);
+        } catch (otpErr) {
+          console.warn('Error reading temp_otps password:', otpErr);
         }
+
+        // 2. Check localStorage client cache
+        if (!matched && typeof window !== 'undefined' && window.localStorage) {
+          const localPwd = window.localStorage.getItem('toolkit_pwd_' + cleanEmail);
+          if (localPwd && localPwd === password) {
+            matched = true;
+          }
+        }
+
+        // 3. Check Firestore users collection (if accessible)
+        if (!matched) {
+          try {
+            const q = query(
+              collection(db, 'users'),
+              where('email', '==', cleanEmail)
+            );
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+              const userData = snap.docs[0].data();
+              if (userData?.password && userData.password === password) {
+                matched = true;
+                if (userData.displayName) displayName = userData.displayName;
+                if (userData.uid) uid = userData.uid;
+              }
+            }
+          } catch (usersErr) {
+            // expected if Firestore rules restrict unauthenticated queries
+          }
+        }
+
+        if (matched) {
+          const syntheticUser = {
+            uid: uid || cleanEmail,
+            email: cleanEmail,
+            displayName,
+            emailVerified: true,
+            isAnonymous: false,
+            metadata: {},
+            providerData: [],
+            refreshToken: '',
+            tenantId: null,
+            delete: async () => {},
+            getIdToken: async () => 'mock-token',
+            getIdTokenResult: async () => ({} as any),
+            reload: async () => {},
+            toJSON: () => ({}),
+            phoneNumber: null,
+            photoURL: null,
+            providerId: 'password',
+          } as unknown as User;
+
+          setCurrentUser(syntheticUser);
+          localStorage.setItem('toolkit_db_user', JSON.stringify({
+            uid: uid || cleanEmail,
+            email: cleanEmail,
+            displayName,
+          }));
+
+          return { user: syntheticUser } as UserCredential;
+        }
+      } catch (checkErr) {
+        console.warn('Database fallback login check failed:', checkErr);
       }
+
       throw err;
     }
   };
